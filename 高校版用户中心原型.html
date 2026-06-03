@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>产品原型 - 高校版用户中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F5F7FA; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+    .proto-element { position: relative; transition: all 0.2s ease; border-radius: 6px; }
+    .proto-element:hover { box-shadow: 0 0 0 2px #165DFF, 0 4px 12px rgba(22,93,255,0.15); background-color: rgba(22,93,255,0.03); }
+    .proto-element.active-highlight { box-shadow: 0 0 0 2px #165DFF, 0 4px 12px rgba(22,93,255,0.2); background-color: rgba(22,93,255,0.05); }
+
+    .proto-desc { transition: all 0.2s ease; border-radius: 6px; border: 1px solid #fde68a; background-color: #fffbeb; }
+    .proto-desc:hover { background-color: #fef3c7; border-color: #f59e0b; box-shadow: 0 2px 8px rgba(245,158,11,0.15); }
+    .proto-desc.active-highlight { background-color: #fde68a; border-color: #d97706; box-shadow: 0 2px 8px rgba(245,158,11,0.25); }
+
+    #connections { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+    .connection-line { fill: none; stroke: #165DFF; stroke-width: 2; opacity: 0; transition: all 0.2s ease; }
+    .connection-line.active { stroke-width: 3; opacity: 1; }
+    .connection-label { fill: #fff; font-size: 12px; font-weight: bold; text-anchor: middle; dominant-baseline: central; opacity: 0; transition: opacity 0.2s ease; }
+    .connection-label.active { opacity: 1; }
+    .connection-label-bg { fill: #165DFF; opacity: 0; transition: opacity 0.2s ease; }
+    .connection-label-bg.active { opacity: 1; }
+
+    .sidebar-menu-item { transition: all 0.2s; cursor: pointer; }
+    .sidebar-menu-item:hover { background-color: rgba(22,93,255,0.08); color: #165DFF; }
+    .sidebar-menu-item.active { background-color: rgba(22,93,255,0.12); color: #165DFF; border-right: 3px solid #165DFF; }
+
+    .data-table th { background-color: #F5F7FA; font-weight: 600; color: #333; }
+    .data-table tbody tr { transition: background-color 0.15s; cursor: pointer; }
+    .data-table tbody tr:hover { background-color: rgba(22,93,255,0.04); }
+    .data-table tbody tr.selected { background-color: rgba(22,93,255,0.08); }
+
+    .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .tag-blue { background-color: rgba(22,93,255,0.1); color: #165DFF; }
+    .tag-green { background-color: rgba(0,180,42,0.1); color: #00B42A; }
+    .tag-red { background-color: rgba(245,63,63,0.1); color: #F53F3F; }
+    .tag-gray { background-color: #F5F7FA; color: #666; }
+    .tag-orange { background-color: rgba(255,140,0,0.1); color: #FF8C00; }
+
+    .modal-overlay { transition: opacity 0.3s ease; }
+    .modal-content { transition: transform 0.3s ease, opacity 0.3s ease; }
+    .modal-hidden { opacity: 0; pointer-events: none; }
+    .modal-hidden .modal-content { transform: scale(0.95); opacity: 0; }
+
+    @media (max-width: 768px) {
+      #app { flex-direction: column; }
+      #left-panel { width: 100% !important; height: 60vh; }
+      #divider { display: none; }
+      #right-panel { width: 100% !important; height: 40vh; border-top: 1px solid #e5e7eb; }
+      #connections { display: none; }
+      .mobile-toggle-btn { display: flex !important; }
+    }
+    .mobile-toggle-btn { display: none; position: fixed; bottom: 20px; right: 20px; z-index: 100; width: 48px; height: 48px; border-radius: 50%; background: #165DFF; color: white; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(22,93,255,0.3); cursor: pointer; border: none; }
+
+    .btn-click:active { transform: scale(0.96); }
+    .form-input:focus { border-color: #165DFF; box-shadow: 0 0 0 3px rgba(22,93,255,0.1); outline: none; }
+
+    .tree-item { transition: background-color 0.15s; cursor: pointer; }
+    .tree-item:hover { background-color: rgba(22,93,255,0.05); }
+    .tree-item.selected { background-color: rgba(22,93,255,0.1); color: #165DFF; }
+
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+
+    .tab-item { transition: all 0.2s; cursor: pointer; padding: 8px 16px; border-bottom: 2px solid transparent; }
+    .tab-item:hover { color: #165DFF; }
+    .tab-item.active { color: #165DFF; border-bottom-color: #165DFF; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <button class="mobile-toggle-btn" id="mobileToggle" onclick="toggleMobileView()">
+    <i class="fas fa-info"></i>
+  </button>
+
+  <div id="app" class="flex h-screen relative">
+
+    <!-- ==================== 左侧：产品界面 ==================== -->
+    <div id="left-panel" class="w-[75%] lg:w-[78%] overflow-y-auto bg-gray-50 relative">
+
+      <!-- 顶部导航栏 -->
+      <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-[#165DFF] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+            <i class="fas fa-graduation-cap"></i>
+          </div>
+          <h1 class="text-lg font-semibold text-gray-800">高校版用户中心</h1>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-gray-600"><i class="fas fa-user-circle mr-1"></i> 系统管理员</span>
+          <button class="text-gray-500 hover:text-gray-700 btn-click"><i class="fas fa-bell"></i></button>
+        </div>
+      </header>
+
+      <div class="flex">
+        <!-- 侧边菜单 -->
+        <aside class="w-56 bg-white border-r border-gray-200 min-h-[calc(100vh-56px)]">
+          <nav class="py-4">
+            <div class="px-4 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">功能菜单</div>
+
+            <!-- 连线1：学校管理菜单 -->
+            <div class="proto-element sidebar-menu-item active px-4 py-2.5 flex items-center gap-3 text-gray-700" data-proto-id="1" onclick="switchView('school')">
+              <i class="fas fa-university w-5 text-center"></i><span class="text-sm">学校管理</span>
+            </div>
+            <!-- 连线2：角色管理菜单 -->
+            <div class="proto-element sidebar-menu-item px-4 py-2.5 flex items-center gap-3 text-gray-700" data-proto-id="2" onclick="switchView('role')">
+              <i class="fas fa-user-tag w-5 text-center"></i><span class="text-sm">角色管理</span>
+            </div>
+            <!-- 连线3：账号管理菜单 -->
+            <div class="proto-element sidebar-menu-item px-4 py-2.5 flex items-center gap-3 text-gray-700" data-proto-id="3" onclick="switchView('account')">
+              <i class="fas fa-users w-5 text-center"></i><span class="text-sm">账号管理</span>
+            </div>
+            <div class="proto-element sidebar-menu-item px-4 py-2.5 flex items-center gap-3 text-gray-700" data-proto-id="4" onclick="switchView('integration')">
+              <i class="fas fa-plug w-5 text-center"></i><span class="text-sm">第三方对接配置</span>
+            </div>
+            <div class="sidebar-menu-item px-4 py-2.5 flex items-center gap-3 text-gray-700" onclick="switchView('login')">
+              <i class="fas fa-sign-in-alt w-5 text-center"></i><span class="text-sm">登录页管理</span>
+            </div>
+            <div class="sidebar-menu-item px-4 py-2.5 flex items-center gap-3 text-gray-700" onclick="switchView('admin')">
+              <i class="fas fa-user-shield w-5 text-center"></i><span class="text-sm">管理员设置</span>
+            </div>
+          </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 p-6">
+
+          <!-- ====== 视图1：学校管理 ====== -->
+          <div id="view-school" class="view-section active">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">学校管理</h2>
+                <p class="text-sm text-gray-500 mt-1">管理高校/中高职学校信息、组织机构及第三方对接</p>
+              </div>
+              <div class="proto-element" data-proto-id="5">
+                <button onclick="openModal('addSchoolModal')" class="bg-[#165DFF] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 btn-click transition-colors">
+                  <i class="fas fa-plus"></i> 新增学校
+                </button>
+              </div>
+            </div>
+
+            <!-- 搜索筛选栏 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+              <div class="flex items-center gap-3 flex-wrap">
+                <input type="text" placeholder="搜索学校名称/唯一标识" class="form-input border border-gray-300 rounded-lg px-3 py-2 text-sm w-64">
+                <select class="form-input border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  <option>全部状态</option><option>启用</option><option>已到期</option><option>已停用</option>
+                </select>
+                <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm btn-click"><i class="fas fa-search mr-1"></i> 查询</button>
+                <button class="text-gray-500 hover:text-gray-700 text-sm px-2 btn-click"><i class="fas fa-redo mr-1"></i> 重置</button>
+              </div>
+            </div>
+
+            <!-- 学校列表表格 -->
+            <div class="proto-element bg-white rounded-lg border border-gray-200 overflow-hidden" data-proto-id="6">
+              <div class="overflow-x-auto">
+                <table class="data-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="px-4 py-3 text-left">学校名称</th>
+                      <th class="px-4 py-3 text-left">唯一标识</th>
+                      
+                      <th class="px-4 py-3 text-center">组织机构数</th>
+                      <th class="px-4 py-3 text-center">账号总数</th>
+                      <th class="px-4 py-3 text-left">到期时间</th>
+                    
+                      <th class="px-4 py-3 text-center">状态</th>
+                      <th class="px-4 py-3 text-center">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="selected" onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">深圳职业技术学院</td>
+                      <td class="px-4 py-3 font-mono text-[#165DFF]">szpt_2024</td>
+                     
+                      <td class="px-4 py-3 text-center">12</td>
+                      <td class="px-4 py-3 text-center">3,580</td>
+                      <td class="px-4 py-3">2026-12-31</td>
+                    
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('schoolDetailModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-eye"></i> 管理</button>
+                        <button onclick="event.stopPropagation();openModal('editSchoolModal')" class="text-gray-500 hover:text-gray-700 text-sm btn-click"><i class="fas fa-edit"></i>编辑</button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">广东轻工职业技术学院</td>
+                      <td class="px-4 py-3 font-mono text-[#165DFF]">gdqg_2024</td>
+                     
+                      <td class="px-4 py-3 text-center">8</td>
+                      <td class="px-4 py-3 text-center">2,100</td>
+                      <td class="px-4 py-3">2026-06-30</td>
+                     
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('schoolDetailModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-eye"></i> 管理</button>
+                        <button onclick="event.stopPropagation();openModal('editSchoolModal')" class="text-gray-500 hover:text-gray-700 text-sm btn-click"><i class="fas fa-edit"></i>编辑</button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">华南师范大学</td>
+                      <td class="px-4 py-3 font-mono text-[#165DFF]">scnu_2025</td>
+                   
+                      <td class="px-4 py-3 text-center">25</td>
+                      <td class="px-4 py-3 text-center">12,800</td>
+                      <td class="px-4 py-3">2027-09-01</td>
+                    
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('schoolDetailModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-eye"></i> 管理</button>
+                        <button onclick="event.stopPropagation();openModal('editSchoolModal')" class="text-gray-500 hover:text-gray-700 text-sm btn-click"><i class="fas fa-edit"></i>编辑</button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">广州番禺职业技术学院</td>
+                      <td class="px-4 py-3 font-mono text-[#165DFF]">gzpy_2024</td>
+                  
+                      <td class="px-4 py-3 text-center">6</td>
+                      <td class="px-4 py-3 text-center">890</td>
+                      <td class="px-4 py-3 text-red-500">2025-12-31</td>
+                    
+                      <td class="px-4 py-3 text-center"><span class="tag tag-red">已到期</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('schoolDetailModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-eye"></i> 管理</button>
+                        <button onclick="event.stopPropagation();openModal('editSchoolModal')" class="text-gray-500 hover:text-gray-700 text-sm btn-click"><i class="fas fa-edit"></i>编辑</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                <span class="text-sm text-gray-500">共 4 条记录</span>
+                <div class="flex items-center gap-1">
+                  <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 hover:bg-gray-50 btn-click">上一页</button>
+                  <button class="px-3 py-1 bg-[#165DFF] text-white rounded text-sm">1</button>
+                  <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 hover:bg-gray-50 btn-click">下一页</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== 视图2：角色管理 ====== -->
+          <div id="view-role" class="view-section">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">角色管理</h2>
+                <p class="text-sm text-gray-500 mt-1">设置与管理大学、中高职常用的标准角色及角色关联信息（槽位）</p>
+              </div>
+              <button onclick="openModal('addRoleModal')" class="bg-[#165DFF] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 btn-click transition-colors">
+                <i class="fas fa-plus"></i> 新增角色
+              </button>
+            </div>
+
+            <div class="proto-element bg-white rounded-lg border border-gray-200 overflow-hidden" data-proto-id="7">
+              <div class="overflow-x-auto">
+                <table class="data-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="px-4 py-3 text-left">角色名称</th>
+                      <th class="px-4 py-3 text-left">父级角色</th>
+                      <th class="px-4 py-3 text-left">关联信息（槽位）</th>
+                      <th class="px-4 py-3 text-center">关联账号数</th>
+                      <th class="px-4 py-3 text-center">状态</th>
+                      <th class="px-4 py-3 text-center">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">教师</td>
+                      <td class="px-4 py-3"><span class="tag tag-gray">一级角色</span></td>
+                      <td class="px-4 py-3 text-gray-600">手机号、学院、是否负责人、职称</td>
+                      <td class="px-4 py-3 text-center">856</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('editRoleModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-edit"></i> 编辑</button>
+                        <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-sm btn-click"><i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium pl-8"><i class="fas fa-level-up-alt fa-rotate-90 text-gray-400 mr-1"></i> 教师-辅导员</td>
+                      <td class="px-4 py-3"><span class="tag tag-blue">教师</span></td>
+                      <td class="px-4 py-3 text-gray-600">手机号、学院、负责班级</td>
+                      <td class="px-4 py-3 text-center">120</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('editRoleModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-edit"></i> 编辑</button>
+                        <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-sm btn-click"><i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium pl-8"><i class="fas fa-level-up-alt fa-rotate-90 text-gray-400 mr-1"></i> 教师-副院长</td>
+                      <td class="px-4 py-3"><span class="tag tag-blue">教师</span></td>
+                      <td class="px-4 py-3 text-gray-600">手机号、学院、管理范围</td>
+                      <td class="px-4 py-3 text-center">35</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('editRoleModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-edit"></i> 编辑</button>
+                        <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-sm btn-click"><i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">学生</td>
+                      <td class="px-4 py-3"><span class="tag tag-gray">一级角色</span></td>
+                      <td class="px-4 py-3 text-gray-600">手机号、学院、班级、学号</td>
+                      <td class="px-4 py-3 text-center">5,200</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('editRoleModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-edit"></i> 编辑</button>
+                        <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-sm btn-click"><i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium pl-8"><i class="fas fa-level-up-alt fa-rotate-90 text-gray-400 mr-1"></i> 学生-班长</td>
+                      <td class="px-4 py-3"><span class="tag tag-blue">学生</span></td>
+                      <td class="px-4 py-3 text-gray-600">手机号、学院、班级、学号</td>
+                      <td class="px-4 py-3 text-center">180</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('editRoleModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-edit"></i> 编辑</button>
+                        <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-sm btn-click"><i class="fas fa-trash"></i></button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== 视图3：账号管理 ====== -->
+          <div id="view-account" class="view-section">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">账号管理</h2>
+                <p class="text-sm text-gray-500 mt-1">在学校组织机构中管理账号，包括新增、编辑、停用及同步账号</p>
+              </div>
+              <button onclick="openModal('addAccountModal')" class="bg-[#165DFF] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 btn-click transition-colors">
+                <i class="fas fa-plus"></i> 新增账号
+              </button>
+            </div>
+
+            <div class="flex gap-4">
+              <!-- 组织机构树 -->
+              <div class="proto-element w-64 bg-white rounded-lg border border-gray-200 p-4 flex-shrink-0" data-proto-id="8">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <i class="fas fa-sitemap text-[#165DFF]"></i> 深圳职业技术学院
+                </h3>
+                <div class="space-y-1 text-sm">
+                  <div class="tree-item selected px-2 py-1.5 rounded flex items-center gap-2 text-[#165DFF] font-medium">
+                    <i class="fas fa-chevron-down text-xs"></i><i class="fas fa-building"></i> 全校
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-3">
+                    <i class="fas fa-chevron-down text-xs"></i> 电子与通信工程学院
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-6 text-gray-500">
+                    通信技术系
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-6 text-gray-500">
+                    电子信息工程技术系
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-3">
+                    <i class="fas fa-chevron-down text-xs"></i> 人工智能学院
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-6 text-gray-500">
+                    软件技术系
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-6 text-gray-500">
+                    大数据技术系
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-3">
+                    <i class="fas fa-chevron-right text-xs"></i> 经济学院
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-3">
+                    <i class="fas fa-chevron-right text-xs"></i> 管理学院
+                  </div>
+                  <div class="tree-item px-2 py-1.5 rounded flex items-center gap-2 ml-3">
+                    <i class="fas fa-chevron-right text-xs"></i> 艺术设计学院
+                  </div>
+                </div>
+              </div>
+
+              <!-- 账号列表 -->
+              <div class="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div class="p-4 border-b border-gray-200 flex items-center gap-3">
+                  <input type="text" placeholder="搜索姓名/手机号" class="form-input border border-gray-300 rounded-lg px-3 py-2 text-sm w-48">
+                  <select class="form-input border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option>全部角色</option><option>教师</option><option>学生</option>
+                  </select>
+                  <select class="form-input border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option>全部状态</option><option>启用</option><option>已停用</option>
+                  </select>
+                  <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm btn-click"><i class="fas fa-search mr-1"></i> 查询</button>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="data-table w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th class="px-4 py-3 text-left"><input type="checkbox" class="rounded"></th>
+                        <th class="px-4 py-3 text-left">姓名</th>
+                        <th class="px-4 py-3 text-left">手机号</th>
+                        <th class="px-4 py-3 text-left">角色</th>
+                        <th class="px-4 py-3 text-left">所属学院</th>
+                        <th class="px-4 py-3 text-left">班级/部门</th>
+                        <th class="px-4 py-3 text-center">账号来源</th>
+                        <th class="px-4 py-3 text-center">部门管理员</th>
+                        <th class="px-4 py-3 text-center">状态</th>
+                        <th class="px-4 py-3 text-center">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr onclick="selectRow(this)">
+                        <td class="px-4 py-3"><input type="checkbox" class="rounded" onclick="event.stopPropagation()"></td>
+                        <td class="px-4 py-3 font-medium">张老师</td>
+                        <td class="px-4 py-3">138****6789</td>
+                        <td class="px-4 py-3"><span class="tag tag-blue">教师</span></td>
+                        <td class="px-4 py-3">人工智能学院</td>
+                        <td class="px-4 py-3">软件技术系</td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-gray">手动新增</span></td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-green">是</span></td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                        <td class="px-4 py-3 text-center">
+                          <button onclick="event.stopPropagation();openModal('editAccountModal')" class="text-[#165DFF] hover:text-blue-700 text-xs font-medium btn-click mr-1">编辑</button>
+                          <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-xs btn-click">停用</button>
+                        </td>
+                      </tr>
+                      <tr onclick="selectRow(this)">
+                        <td class="px-4 py-3"><input type="checkbox" class="rounded" onclick="event.stopPropagation()"></td>
+                        <td class="px-4 py-3 font-medium">李明</td>
+                        <td class="px-4 py-3">139****1234</td>
+                        <td class="px-4 py-3"><span class="tag tag-blue">学生-班长</span></td>
+                        <td class="px-4 py-3">人工智能学院</td>
+                        <td class="px-4 py-3">软件技术2024-1班</td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-green">同步</span></td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-gray">否</span></td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-green">启用</span></td>
+                        <td class="px-4 py-3 text-center">
+                          <button onclick="event.stopPropagation();" class="text-gray-400 text-xs">-</button>
+                          <button onclick="event.stopPropagation();" class="text-red-500 hover:text-red-700 text-xs btn-click ml-1">停用</button>
+                        </td>
+                      </tr>
+                      <tr onclick="selectRow(this)" class="bg-gray-50">
+                        <td class="px-4 py-3"><input type="checkbox" class="rounded" onclick="event.stopPropagation()"></td>
+                        <td class="px-4 py-3 font-medium">王同学</td>
+                        <td class="px-4 py-3">137****5678</td>
+                        <td class="px-4 py-3"><span class="tag tag-blue">学生</span></td>
+                        <td class="px-4 py-3">电子与通信工程学院</td>
+                        <td class="px-4 py-3">通信技术2024-2班</td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-green">同步</span></td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-gray">否</span></td>
+                        <td class="px-4 py-3 text-center"><span class="tag tag-red">已停用</span></td>
+                        <td class="px-4 py-3 text-center">
+                          <button onclick="event.stopPropagation();" class="text-green-500 hover:text-green-700 text-xs font-medium btn-click mr-1">启用</button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                  <span class="text-sm text-gray-500">共 3,580 条记录</span>
+                  <div class="flex items-center gap-1">
+                    <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 btn-click">上一页</button>
+                    <button class="px-3 py-1 bg-[#165DFF] text-white rounded text-sm">1</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 btn-click">2</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 btn-click">3</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-500 btn-click">下一页</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== 视图4：第三方对接配置 ====== -->
+          <div id="view-integration" class="view-section">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">第三方对接配置</h2>
+                <p class="text-sm text-gray-500 mt-1">可视化配置与学校用户中心的数据对接，支持同步存储与实时调用两种模式</p>
+              </div>
+              <button onclick="openModal('addIntegrationModal')" class="bg-[#165DFF] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 btn-click transition-colors">
+                <i class="fas fa-plus"></i> 新增对接配置
+              </button>
+            </div>
+
+            <div class="proto-element bg-white rounded-lg border border-gray-200 overflow-hidden mb-6" data-proto-id="9">
+              <div class="overflow-x-auto">
+                <table class="data-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="px-4 py-3 text-left">配置名称</th>
+                      <th class="px-4 py-3 text-left">所属学校</th>
+                      <th class="px-4 py-3 text-left">对接模式</th>
+                      <th class="px-4 py-3 text-left">同步频率</th>
+                      <th class="px-4 py-3 text-center">接口数量</th>
+                      <th class="px-4 py-3 text-left">最近同步时间</th>
+                      <th class="px-4 py-3 text-center">状态</th>
+                      <th class="px-4 py-3 text-center">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">深职院统一身份认证对接</td>
+                      <td class="px-4 py-3">深圳职业技术学院</td>
+                      <td class="px-4 py-3"><span class="tag tag-green">同步存储</span></td>
+                      <td class="px-4 py-3">每天 02:00</td>
+                      <td class="px-4 py-3 text-center">3</td>
+                      <td class="px-4 py-3 text-gray-500">2026-06-03 02:00:15</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">运行中</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('integrationDetailModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-cog"></i> 配置</button>
+                        <button onclick="event.stopPropagation();" class="text-orange-500 hover:text-orange-700 text-sm btn-click mr-1"><i class="fas fa-sync"></i></button>
+                      </td>
+                    </tr>
+                    <tr onclick="selectRow(this)">
+                      <td class="px-4 py-3 font-medium">广轻工实时用户查询接口</td>
+                      <td class="px-4 py-3">广东轻工职业技术学院</td>
+                      <td class="px-4 py-3"><span class="tag tag-orange">实时调用</span></td>
+                      <td class="px-4 py-3 text-gray-400">-</td>
+                      <td class="px-4 py-3 text-center">2</td>
+                      <td class="px-4 py-3 text-gray-400">-</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">运行中</span></td>
+                      <td class="px-4 py-3 text-center">
+                        <button onclick="event.stopPropagation();openModal('integrationDetailModal')" class="text-[#165DFF] hover:text-blue-700 text-sm font-medium btn-click mr-2"><i class="fas fa-cog"></i> 配置</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 对接配置可视化示例 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-project-diagram text-[#165DFF]"></i> 数据流转配置（可视化）
+              </h3>
+              <div class="flex items-center gap-4 flex-wrap">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center min-w-[120px]">
+                  <i class="fas fa-database text-blue-500 text-xl mb-1 block"></i>
+                  <span class="text-xs font-medium text-gray-700">学校用户中心</span>
+                </div>
+                <div class="text-gray-400 text-xl"><i class="fas fa-arrow-right"></i></div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center min-w-[120px]">
+                  <i class="fas fa-code text-gray-500 text-xl mb-1 block"></i>
+                  <span class="text-xs font-medium text-gray-700">API接口</span>
+                  <span class="text-xs text-gray-400 block">GET /api/users</span>
+                </div>
+                <div class="text-gray-400 text-xl"><i class="fas fa-arrow-right"></i></div>
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center min-w-[120px]">
+                  <i class="fas fa-cogs text-orange-500 text-xl mb-1 block"></i>
+                  <span class="text-xs font-medium text-gray-700">数据映射处理</span>
+                </div>
+                <div class="text-gray-400 text-xl"><i class="fas fa-arrow-right"></i></div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center min-w-[120px]">
+                  <i class="fas fa-database text-green-500 text-xl mb-1 block"></i>
+                  <span class="text-xs font-medium text-gray-700">用户中心数据库</span>
+                </div>
+              </div>
+
+              <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 class="text-xs font-semibold text-gray-600 mb-3">字段映射规则</h4>
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="text-left text-gray-500 border-b border-gray-200">
+                      <th class="pb-2">源字段（学校系统）</th><th class="pb-2">目标字段（用户中心）</th><th class="pb-2">转换规则</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-gray-100"><td class="py-2 font-mono">user_id</td><td class="py-2 font-mono text-[#165DFF]">external_id</td><td class="py-2 text-gray-500">直接映射</td></tr>
+                    <tr class="border-b border-gray-100"><td class="py-2 font-mono">real_name</td><td class="py-2 font-mono text-[#165DFF]">display_name</td><td class="py-2 text-gray-500">直接映射</td></tr>
+                    <tr class="border-b border-gray-100"><td class="py-2 font-mono">mobile</td><td class="py-2 font-mono text-[#165DFF]">phone</td><td class="py-2 text-gray-500">直接映射</td></tr>
+                    <tr class="border-b border-gray-100"><td class="py-2 font-mono">department</td><td class="py-2 font-mono text-[#165DFF]">org_name</td><td class="py-2 text-gray-500">模糊匹配组织机构树</td></tr>
+                    <tr><td class="py-2 font-mono">role_type</td><td class="py-2 font-mono text-[#165DFF]">role_id</td><td class="py-2 text-gray-500">枚举值映射（student→学生, teacher→教师）</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ====== 视图5：登录页管理 ====== -->
+          <div id="view-login" class="view-section">
+            <div class="mb-6">
+              <h2 class="text-xl font-bold text-gray-800">登录页管理</h2>
+              <p class="text-sm text-gray-500 mt-1">设置退出登录或未登录状态时的默认跳转URL</p>
+            </div>
+            <div class="bg-white rounded-lg border border-gray-200 p-6 max-w-2xl">
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">默认跳转URL</label>
+                <input type="url" value="https://sso.example.edu.cn/login" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="请输入跳转URL">
+                <p class="text-xs text-gray-400 mt-1">用户未登录或退出登录后，将自动跳转到此地址</p>
+              </div>
+              <button class="bg-[#165DFF] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium btn-click" onclick="alert('保存成功！')">
+                <i class="fas fa-save mr-1"></i> 保存设置
+              </button>
+            </div>
+          </div>
+
+          <!-- ====== 视图6：管理员设置 ====== -->
+          <div id="view-admin" class="view-section">
+            <div class="mb-6">
+              <h2 class="text-xl font-bold text-gray-800">用户中心管理员设置</h2>
+              <p class="text-sm text-gray-500 mt-1">选取账号作为用户中心管理员，被选中的账号可登录用户中心进行操作与管理</p>
+            </div>
+            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden max-w-3xl">
+              <div class="p-4 border-b border-gray-200">
+                <input type="text" placeholder="搜索账号" class="form-input border border-gray-300 rounded-lg px-3 py-2 text-sm w-48">
+                <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm btn-click ml-2"><i class="fas fa-search mr-1"></i> 查询</button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="data-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="px-4 py-3 text-left"><input type="checkbox" class="rounded"></th>
+                      <th class="px-4 py-3 text-left">姓名</th>
+                      <th class="px-4 py-3 text-left">手机号</th>
+                      <th class="px-4 py-3 text-left">角色</th>
+                      <th class="px-4 py-3 text-left">所属学校</th>
+                      <th class="px-4 py-3 text-center">管理员权限</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="px-4 py-3"><input type="checkbox" class="rounded" checked></td>
+                      <td class="px-4 py-3 font-medium">张老师</td>
+                      <td class="px-4 py-3">138****6789</td>
+                      <td class="px-4 py-3"><span class="tag tag-blue">教师</span></td>
+                      <td class="px-4 py-3">深圳职业技术学院</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-green">超级管理员</span></td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3"><input type="checkbox" class="rounded" checked></td>
+                      <td class="px-4 py-3 font-medium">李主任</td>
+                      <td class="px-4 py-3">136****8901</td>
+                      <td class="px-4 py-3"><span class="tag tag-blue">教师-副院长</span></td>
+                      <td class="px-4 py-3">深圳职业技术学院</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-blue">普通管理员</span></td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-3"><input type="checkbox" class="rounded"></td>
+                      <td class="px-4 py-3 font-medium">赵老师</td>
+                      <td class="px-4 py-3">135****3456</td>
+                      <td class="px-4 py-3"><span class="tag tag-blue">教师-辅导员</span></td>
+                      <td class="px-4 py-3">广东轻工职业技术学院</td>
+                      <td class="px-4 py-3 text-center"><span class="tag tag-gray">非管理员</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="px-4 py-3 border-t border-gray-200">
+                <button class="bg-[#165DFF] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium btn-click" onclick="alert('管理员权限已更新！')">
+                  <i class="fas fa-save mr-1"></i> 保存管理员设置
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+
+    <!-- 分隔线 -->
+    <div id="divider" class="w-px bg-gray-300"></div>
+
+    <!-- ==================== 右侧：功能说明 ==================== -->
+    <div id="right-panel" class="w-[25%] lg:w-[22%] overflow-y-auto bg-amber-50 border-l-2 border-dashed border-amber-300">
+      <div class="p-4">
+        <div class="mb-4 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded uppercase tracking-wide">Prototype</span>
+            <span class="text-xs font-semibold text-amber-800">原型说明</span>
+          </div>
+          <p class="text-[11px] text-amber-700 leading-relaxed">
+            高校版用户中心是一个轻量化的后台管理系统。悬停左侧对应区域可高亮连线查看功能说明。
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 mb-4 pb-3 border-b border-amber-200">
+          <i class="fas fa-map-signs text-amber-600"></i>
+          <h2 class="text-sm font-bold text-amber-900">功能说明</h2>
+        </div>
+
+        <div class="space-y-3">
+          <div class="proto-desc p-3 active-highlight" data-proto-id="1">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">1</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">学校管理</h3>
+                <p class="text-xs text-gray-500 mt-1">管理所有已开通的高校/中高职学校。支持新增学校（名称、唯一标识、到期时间），查看学校下的组织机构树和账号情况。到期后所有账号自动停用。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="2">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">2</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">角色管理</h3>
+                <p class="text-xs text-gray-500 mt-1">设置标准角色，支持两级结构（如学生-班长、教师-辅导员）。每个角色可配置关联信息（槽位），用于同步/新增账号时填写和第三方系统数据传输。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="3">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">3</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">账号管理</h3>
+                <p class="text-xs text-gray-500 mt-1">在学校组织机构树中管理账号。手动新增：可增删改查、停用/启用、修改密码、设置部门管理员。同步账号：仅可停用/启用和设置部门管理员。每个账号可属于多个部门。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="4">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">4</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">第三方对接配置</h3>
+                <p class="text-xs text-gray-500 mt-1">可视化免代码方式配置与学校用户中心的数据对接。两种模式：</p>
+                <ul class="text-xs text-gray-500 mt-1 ml-4 list-disc space-y-0.5">
+                  <li><strong>同步存储</strong>：定时调用接口同步数据到本地</li>
+                  <li><strong>实时调用</strong>：不存储数据，注册接口实时获取</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="5">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">5</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">新增学校</h3>
+                <p class="text-xs text-gray-500 mt-1">快速开通一所新的高校/中高职院校。填写学校名称、唯一标识（用于API对接）和到期时间后，即可开始配置组织机构和账号。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="6">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">6</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">学校列表</h3>
+                <p class="text-xs text-gray-500 mt-1">展示所有已开通的学校信息。包含学校名称、唯一标识、类型、组织机构数、账号总数、到期时间和对接方式。点击"查看"进入详细管理页面。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="7">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">7</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">角色列表</h3>
+                <p class="text-xs text-gray-500 mt-1">展示所有标准角色及其关联信息（槽位）。支持两级角色结构，如"教师"下包含"教师-辅导员""教师-副院长"等子角色。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="8">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">8</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">组织机构树</h3>
+                <p class="text-xs text-gray-500 mt-1">展示学校的组织机构层级结构，默认包含学院级节点。支持自定义添加组织。年级、班级等动态数据通过账号信息同步自动更新，不在树中展示。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="proto-desc p-3" data-proto-id="9">
+            <div class="flex items-start gap-2">
+              <span class="flex-shrink-0 w-6 h-6 bg-amber-500 text-white rounded-full text-xs font-bold flex items-center justify-center">9</span>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-800">对接配置列表</h3>
+                <p class="text-xs text-gray-500 mt-1">管理所有学校的第三方对接配置。每条配置包含对接模式（同步存储/实时调用）、同步频率、接入的接口数量及最近同步状态。支持手动触发同步。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SVG 连线层 -->
+  <svg id="connections" class="absolute top-0 left-0 w-full h-full pointer-events-none"></svg>
+
+  <!-- ==================== 模态框：新增学校 ==================== -->
+  <div id="addSchoolModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">新增学校</h3>
+        <button onclick="closeModal('addSchoolModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">学校名称 <span class="text-red-500">*</span></label>
+          <input type="text" placeholder="请输入学校全称" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">唯一标识 <span class="text-red-500">*</span></label>
+          <input type="text" placeholder="用于API对接，如：szpt_2024" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
+          <p class="text-xs text-gray-400 mt-1">唯一标识创建后不可修改，用于第三方系统对接</p>
+        </div>
+    
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">到期时间 <span class="text-red-500">*</span></label>
+          <input type="date" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <p class="text-xs text-gray-400 mt-1">到期后所有账号自动停用</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+          <textarea rows="2" placeholder="可选填" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('addSchoolModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('addSchoolModal'); alert('学校创建成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：学校详情 -->
+  <div id="schoolDetailModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden" style="max-height: 85vh; overflow-y: auto;">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
+        <h3 class="text-lg font-semibold text-gray-800">深圳职业技术学院 - 详情</h3>
+        <button onclick="closeModal('schoolDetailModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5">
+        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+          <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><i class="fas fa-info-circle text-[#165DFF]"></i> 基本信息</h4>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="block text-xs text-gray-500 mb-1">学校名称</label><div class="text-sm font-medium">深圳职业技术学院</div></div>
+            <div><label class="block text-xs text-gray-500 mb-1">唯一标识</label><div class="text-sm font-mono text-[#165DFF]">szpt_2024</div></div>
+            <div><label class="block text-xs text-gray-500 mb-1">到期时间</label><div class="text-sm">2026-12-31</div></div>
+          </div>
+        </div>
+
+        <div class="flex gap-4">
+          <div class="w-64 bg-gray-50 rounded-lg p-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><i class="fas fa-sitemap text-[#165DFF]"></i> 组织机构</h4>
+            <div class="space-y-1 text-sm">
+              <div class="px-2 py-1.5 flex items-center gap-2"><i class="fas fa-chevron-down text-xs"></i> 电子与通信工程学院</div>
+              <div class="px-2 py-1.5 flex items-center gap-2 ml-3 text-gray-500">通信技术系</div>
+              <div class="px-2 py-1.5 flex items-center gap-2 ml-3 text-gray-500">电子信息工程技术系</div>
+              <div class="px-2 py-1.5 flex items-center gap-2"><i class="fas fa-chevron-down text-xs"></i> 人工智能学院</div>
+              <div class="px-2 py-1.5 flex items-center gap-2 ml-3 text-gray-500">软件技术系</div>
+              <div class="px-2 py-1.5 flex items-center gap-2 ml-3 text-gray-500">大数据技术系</div>
+              <div class="px-2 py-1.5 flex items-center gap-2"><i class="fas fa-chevron-right text-xs"></i> 经济学院</div>
+              <div class="px-2 py-1.5 flex items-center gap-2"><i class="fas fa-chevron-right text-xs"></i> 管理学院</div>
+              <button class="text-xs text-[#165DFF] hover:text-blue-700 mt-2 btn-click"><i class="fas fa-plus mr-1"></i> 添加组织机构</button>
+            </div>
+          </div>
+
+          <div class="flex-1 bg-gray-50 rounded-lg p-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><i class="fas fa-plug text-[#165DFF]"></i> 对接配置</h4>
+            <div class="space-y-3">
+              <div class="bg-white rounded-md p-3 border border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="text-sm font-medium">统一身份认证对接</span>
+                    <span class="tag tag-green ml-2">运行中</span>
+                  </div>
+                  <span class="tag tag-green text-xs">同步存储</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">每天 02:00 同步 | 3个接口 | 最近同步: 2026-06-03 02:00:15</div>
+              </div>
+            </div>
+            <button class="text-xs text-[#165DFF] hover:text-blue-700 mt-2 btn-click"><i class="fas fa-plus mr-1"></i> 添加对接配置</button>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('schoolDetailModal')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg font-medium btn-click">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：新增角色 -->
+  <div id="addRoleModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">新增角色</h3>
+        <button onclick="closeModal('addRoleModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">角色名称 <span class="text-red-500">*</span></label>
+          <input type="text" placeholder="如：教师、学生" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">父级角色</label>
+          <select class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option>无（一级角色）</option><option>教师</option><option>学生</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">关联信息（槽位）</label>
+          <div class="border border-gray-300 rounded-lg p-3 space-y-2">
+            <div class="flex items-center gap-2 bg-gray-50 rounded px-3 py-2">
+              <span class="text-sm flex-1">手机号</span><span class="tag tag-blue text-xs">必填</span><button class="text-red-400 hover:text-red-600 text-xs btn-click"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex items-center gap-2 bg-gray-50 rounded px-3 py-2">
+              <span class="text-sm flex-1">学院</span><span class="tag tag-blue text-xs">必填</span><button class="text-red-400 hover:text-red-600 text-xs btn-click"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="text" placeholder="添加槽位名称" class="form-input flex-1 border border-gray-300 rounded px-3 py-2 text-sm">
+              <select class="form-input border border-gray-300 rounded px-2 py-2 text-xs">
+                <option>必填</option><option>选填</option>
+              </select>
+              <button class="text-[#165DFF] hover:text-blue-700 text-sm btn-click"><i class="fas fa-plus-circle"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('addRoleModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('addRoleModal'); alert('角色创建成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：编辑角色 -->
+  <div id="editRoleModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">编辑角色 - 教师</h3>
+        <button onclick="closeModal('editRoleModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">角色名称</label>
+          <input type="text" value="教师" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">关联信息（槽位）</label>
+          <div class="border border-gray-300 rounded-lg p-3 space-y-2">
+            <div class="flex items-center gap-2 bg-gray-50 rounded px-3 py-2"><span class="text-sm flex-1">手机号</span><span class="tag tag-blue text-xs">必填</span><button class="text-red-400 hover:text-red-600 text-xs btn-click"><i class="fas fa-times"></i></button></div>
+            <div class="flex items-center gap-2 bg-gray-50 rounded px-3 py-2"><span class="text-sm flex-1">学院</span><span class="tag tag-blue text-xs">必填</span><button class="text-red-400 hover:text-red-600 text-xs btn-click"><i class="fas fa-times"></i></button></div>
+            <div class="flex items-center gap-2 bg-gray-50 rounded px-3 py-2"><span class="text-sm flex-1">是否负责人</span><span class="tag tag-gray text-xs">选填</span><button class="text-red-400 hover:text-red-600 text-xs btn-click"><i class="fas fa-times"></i></button></div>
+            <div class="flex items-center gap-2 bg-gray-50 rounded px-3 py-2"><span class="text-sm flex-1">职称</span><span class="tag tag-gray text-xs">选填</span><button class="text-red-400 hover:text-red-600 text-xs btn-click"><i class="fas fa-times"></i></button></div>
+            <div class="flex items-center gap-2"><input type="text" placeholder="添加槽位名称" class="form-input flex-1 border border-gray-300 rounded px-3 py-2 text-sm"><select class="form-input border border-gray-300 rounded px-2 py-2 text-xs"><option>必填</option><option>选填</option></select><button class="text-[#165DFF] hover:text-blue-700 text-sm btn-click"><i class="fas fa-plus-circle"></i></button></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('editRoleModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('editRoleModal'); alert('角色更新成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：新增账号 -->
+  <div id="addAccountModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">新增账号</h3>
+        <button onclick="closeModal('addAccountModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">选择角色 <span class="text-red-500">*</span></label>
+          <select class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="toggleAccountFields(this.value)">
+            <option>请选择角色</option><option>教师</option><option>教师-辅导员</option><option>学生</option><option>学生-班长</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">姓名 <span class="text-red-500">*</span></label>
+          <input type="text" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">手机号</label>
+          <input type="text" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">所属组织机构 <span class="text-red-500">*</span></label>
+          <select class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option>人工智能学院 - 软件技术系</option>
+            <option>人工智能学院 - 大数据技术系</option>
+            <option>电子与通信工程学院 - 通信技术系</option>
+            <option>经济学院</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">初始密码 <span class="text-red-500">*</span></label>
+          <input type="password" value="123456" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('addAccountModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('addAccountModal'); alert('账号创建成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：新增对接配置 -->
+  <div id="addIntegrationModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">新增对接配置</h3>
+        <button onclick="closeModal('addIntegrationModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">配置名称 <span class="text-red-500">*</span></label>
+          <input type="text" placeholder="如：统一身份认证对接" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">所属学校 <span class="text-red-500">*</span></label>
+          <select class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option>深圳职业技术学院</option><option>广东轻工职业技术学院</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">对接模式 <span class="text-red-500">*</span></label>
+          <div class="space-y-2">
+            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-[#165DFF]">
+              <input type="radio" name="syncMode" class="text-[#165DFF]" checked>
+              <div><span class="text-sm font-medium">同步存储</span><p class="text-xs text-gray-500">定时调用学校接口，将数据同步到用户中心数据库</p></div>
+            </label>
+            <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-[#165DFF]">
+              <input type="radio" name="syncMode" class="text-[#165DFF]">
+              <div><span class="text-sm font-medium">实时调用（不存储）</span><p class="text-xs text-gray-500">仅注册接口，业务需要时实时调用学校系统获取数据</p></div>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">接口配置</label>
+          <div class="space-y-2">
+            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="tag tag-blue text-xs">接口1</span>
+                <span class="text-sm font-medium">获取用户列表</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <input type="text" placeholder="接口URL" value="https://sso.example.edu.cn/api/users" class="form-input border border-gray-300 rounded px-2 py-1.5">
+                <select class="form-input border border-gray-300 rounded px-2 py-1.5"><option>GET</option><option>POST</option></select>
+              </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="tag tag-blue text-xs">接口2</span>
+                <span class="text-sm font-medium">获取组织机构</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <input type="text" placeholder="接口URL" class="form-input border border-gray-300 rounded px-2 py-1.5">
+                <select class="form-input border border-gray-300 rounded px-2 py-1.5"><option>GET</option><option>POST</option></select>
+              </div>
+            </div>
+            <button class="text-xs text-[#165DFF] hover:text-blue-700 btn-click"><i class="fas fa-plus-circle mr-1"></i> 添加接口</button>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('addIntegrationModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('addIntegrationModal'); alert('对接配置保存成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：对接配置详情 -->
+  <div id="integrationDetailModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden" style="max-height: 85vh; overflow-y: auto;">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
+        <h3 class="text-lg font-semibold text-gray-800">深职院统一身份认证对接 - 配置详情</h3>
+        <button onclick="closeModal('integrationDetailModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5">
+        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+          <h4 class="text-sm font-semibold text-gray-700 mb-3">基本信息</h4>
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div><span class="text-gray-500">对接模式：</span><span class="tag tag-green">同步存储</span></div>
+            <div><span class="text-gray-500">同步频率：</span>每天 02:00</div>
+            <div><span class="text-gray-500">状态：</span><span class="tag tag-green">运行中</span></div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <h4 class="text-sm font-semibold text-gray-700 mb-3">接口列表</h4>
+          <div class="space-y-3">
+            <div class="border border-gray-200 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium">接口1：获取用户列表</span>
+                <span class="tag tag-green text-xs">正常</span>
+              </div>
+              <div class="text-xs text-gray-500 space-y-1">
+                <div>URL: <code class="bg-gray-100 px-1 rounded">GET https://sso.szpt.edu.cn/api/v2/users</code></div>
+                <div>分页参数: page, pageSize | 认证方式: Bearer Token</div>
+              </div>
+            </div>
+            <div class="border border-gray-200 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium">接口2：获取组织机构树</span>
+                <span class="tag tag-green text-xs">正常</span>
+              </div>
+              <div class="text-xs text-gray-500 space-y-1">
+                <div>URL: <code class="bg-gray-100 px-1 rounded">GET https://sso.szpt.edu.cn/api/v2/orgs</code></div>
+                <div>认证方式: Bearer Token</div>
+              </div>
+            </div>
+            <div class="border border-gray-200 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium">接口3：获取用户详情</span>
+                <span class="tag tag-green text-xs">正常</span>
+              </div>
+              <div class="text-xs text-gray-500 space-y-1">
+                <div>URL: <code class="bg-gray-100 px-1 rounded">GET https://sso.szpt.edu.cn/api/v2/user/{id}</code></div>
+                <div>认证方式: Bearer Token</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-gray-700 mb-3">数据映射规则</h4>
+          <table class="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+            <thead><tr class="bg-gray-50"><th class="px-3 py-2 text-left">源字段</th><th class="px-3 py-2 text-left">目标字段</th><th class="px-3 py-2 text-left">转换规则</th></tr></thead>
+            <tbody>
+              <tr class="border-t"><td class="px-3 py-2 font-mono">user_id</td><td class="px-3 py-2 font-mono text-[#165DFF]">external_id</td><td class="px-3 py-2">直接映射</td></tr>
+              <tr class="border-t"><td class="px-3 py-2 font-mono">real_name</td><td class="px-3 py-2 font-mono text-[#165DFF]">display_name</td><td class="px-3 py-2">直接映射</td></tr>
+              <tr class="border-t"><td class="px-3 py-2 font-mono">mobile</td><td class="px-3 py-2 font-mono text-[#165DFF]">phone</td><td class="px-3 py-2">直接映射</td></tr>
+              <tr class="border-t"><td class="px-3 py-2 font-mono">department</td><td class="px-3 py-2 font-mono text-[#165DFF]">org_name</td><td class="px-3 py-2">模糊匹配组织机构树</td></tr>
+              <tr class="border-t"><td class="px-3 py-2 font-mono">role_type</td><td class="px-3 py-2 font-mono text-[#165DFF]">role_id</td><td class="px-3 py-2">枚举映射(student→学生, teacher→教师)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('integrationDetailModal')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg font-medium btn-click">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：编辑账号 -->
+  <div id="editAccountModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">编辑账号 - 张老师</h3>
+        <button onclick="closeModal('editAccountModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+          <input type="text" value="张老师" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">手机号</label>
+          <input type="text" value="138****6789" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
+          <select class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option selected>教师</option><option>教师-辅导员</option><option>教师-副院长</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">所属组织机构</label>
+          <select class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <option selected>人工智能学院 - 软件技术系</option>
+            <option>人工智能学院 - 大数据技术系</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">部门管理员</label>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" class="rounded text-[#165DFF]" checked><span class="text-sm">设为部门管理员</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">修改密码</label>
+          <input type="password" placeholder="留空则不修改" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('editAccountModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('editAccountModal'); alert('账号更新成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：编辑学校 -->
+  <div id="editSchoolModal" class="modal-overlay modal-hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">编辑学校</h3>
+        <button onclick="closeModal('editSchoolModal')" class="text-gray-400 hover:text-gray-600 btn-click"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">学校名称</label>
+          <input type="text" value="深圳职业技术学院" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">唯一标识</label>
+          <input type="text" value="szpt_2024" disabled class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">到期时间</label>
+          <input type="date" value="2026-12-31" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="status" checked class="text-[#165DFF]"><span class="text-sm">启用</span></label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="status" class="text-[#165DFF]"><span class="text-sm">停用</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button onclick="closeModal('editSchoolModal')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 btn-click">取消</button>
+        <button onclick="closeModal('editSchoolModal'); alert('学校信息更新成功！')" class="px-4 py-2 bg-[#165DFF] hover:bg-blue-600 text-white text-sm rounded-lg font-medium btn-click">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== 连线绘制 ==========
+    const svg = document.getElementById('connections');
+    const connections = [];
+
+    function drawConnections() {
+      svg.innerHTML = '';
+      connections.length = 0;
+
+      const leftElements = document.querySelectorAll('.proto-element[data-proto-id]');
+      const rightElements = document.querySelectorAll('.proto-desc[data-proto-id]');
+
+      leftElements.forEach(leftEl => {
+        const protoId = leftEl.getAttribute('data-proto-id');
+        const rightEl = document.querySelector(`.proto-desc[data-proto-id="${protoId}"]`);
+        if (!rightEl) return;
+
+        // Check visibility
+        if (leftEl.offsetParent === null && rightEl.offsetParent === null) return;
+
+        const leftRect = leftEl.getBoundingClientRect();
+        const rightRect = rightEl.getBoundingClientRect();
+        const svgRect = svg.getBoundingClientRect();
+
+        const x1 = leftRect.right - svgRect.left;
+        const y1 = leftRect.top + leftRect.height / 2 - svgRect.top;
+        const x2 = rightRect.left - svgRect.left;
+        const y2 = rightRect.top + rightRect.height / 2 - svgRect.top;
+
+        const midX = (x1 + x2) / 2;
+        const cp1x = x1 + (x2 - x1) * 0.4;
+        const cp1y = y1;
+        const cp2x = x1 + (x2 - x1) * 0.6;
+        const cp2y = y2;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`);
+        path.setAttribute('class', 'connection-line');
+        path.setAttribute('data-proto-id', protoId);
+        svg.appendChild(path);
+
+        const midY = (y1 + y2) / 2;
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bg.setAttribute('cx', midX);
+        bg.setAttribute('cy', midY);
+        bg.setAttribute('r', 11);
+        bg.setAttribute('class', 'connection-label-bg');
+        bg.setAttribute('data-proto-id', protoId);
+        svg.appendChild(bg);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', midX);
+        text.setAttribute('y', midY);
+        text.setAttribute('dy', '0.05em');
+        text.setAttribute('class', 'connection-label');
+        text.setAttribute('data-proto-id', protoId);
+        text.textContent = protoId;
+        svg.appendChild(text);
+
+        connections.push({ protoId, path, bg, text, leftEl, rightEl });
+      });
+    }
+
+    function highlightConnection(protoId, active) {
+      const conn = connections.find(c => c.protoId === protoId);
+      if (!conn) return;
+      if (active) {
+        conn.path.classList.add('active');
+        conn.bg.classList.add('active');
+        conn.text.classList.add('active');
+        conn.leftEl.classList.add('active-highlight');
+        conn.rightEl.classList.add('active-highlight');
+      } else {
+        conn.path.classList.remove('active');
+        conn.bg.classList.remove('active');
+        conn.text.classList.remove('active');
+        conn.leftEl.classList.remove('active-highlight');
+        conn.rightEl.classList.remove('active-highlight');
+      }
+    }
+
+    function bindHoverEvents() {
+      document.querySelectorAll('.proto-element[data-proto-id]').forEach(el => {
+        el.addEventListener('mouseenter', () => highlightConnection(el.getAttribute('data-proto-id'), true));
+        el.addEventListener('mouseleave', () => highlightConnection(el.getAttribute('data-proto-id'), false));
+      });
+      document.querySelectorAll('.proto-desc[data-proto-id]').forEach(el => {
+        el.addEventListener('mouseenter', () => highlightConnection(el.getAttribute('data-proto-id'), true));
+        el.addEventListener('mouseleave', () => highlightConnection(el.getAttribute('data-proto-id'), false));
+      });
+    }
+
+    // ========== 视图切换 ==========
+    function switchView(viewName) {
+      // Update sidebar active state
+      document.querySelectorAll('.sidebar-menu-item').forEach(item => item.classList.remove('active'));
+      const clickedItem = document.querySelector(`.sidebar-menu-item[onclick="switchView('${viewName}')"]`);
+      if (clickedItem) clickedItem.classList.add('active');
+
+      // Hide all views, show selected
+      document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+      const targetView = document.getElementById(`view-${viewName}`);
+      if (targetView) targetView.classList.add('active');
+
+      // Redraw connections after view switch
+      setTimeout(drawConnections, 150);
+    }
+
+    // ========== 模态框 ==========
+    function openModal(id) { document.getElementById(id).classList.remove('modal-hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('modal-hidden'); }
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('modal-hidden'); });
+    });
+
+    // ========== 表格选择 ==========
+    function selectRow(row) {
+      const tbody = row.parentElement;
+      tbody.querySelectorAll('tr').forEach(tr => tr.classList.remove('selected'));
+      row.classList.add('selected');
+    }
+
+    // ========== 移动端切换 ==========
+    let mobileShowDesc = false;
+    function toggleMobileView() {
+      mobileShowDesc = !mobileShowDesc;
+      const leftPanel = document.getElementById('left-panel');
+      const rightPanel = document.getElementById('right-panel');
+      const btn = document.getElementById('mobileToggle');
+      if (mobileShowDesc) {
+        leftPanel.style.display = 'none'; rightPanel.style.height = '100vh'; btn.innerHTML = '<i class="fas fa-desktop"></i>';
+      } else {
+        leftPanel.style.display = ''; rightPanel.style.height = ''; btn.innerHTML = '<i class="fas fa-info"></i>';
+      }
+    }
+
+    // ========== 账号字段联动 ==========
+    function toggleAccountFields(role) {
+      // Simulate role-based field changes
+      console.log('Role changed to:', role);
+    }
+
+    // ========== 初始化 ==========
+    function init() { drawConnections(); bindHoverEvents(); }
+    document.addEventListener('DOMContentLoaded', () => { setTimeout(init, 100); });
+    let resizeTimer;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(init, 150); });
+    document.getElementById('left-panel').addEventListener('scroll', () => { requestAnimationFrame(drawConnections); });
+    document.getElementById('right-panel').addEventListener('scroll', () => { requestAnimationFrame(drawConnections); });
+  </script>
+</body>
+</html>
